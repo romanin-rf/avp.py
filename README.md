@@ -4,7 +4,7 @@
 
 ## Install
 ```
-...
+python -m pip install --upgrade avplib
 ```
 
 ## Usage
