@@ -4,12 +4,12 @@ import setuptools
 # * This setup
 setuptools.setup(
 	name="avplib",
-	version="1.0.0",
+	version="1.0.5",
 	description='AVP - ASCII Video Player. Allows you to play any video as ASCII-art.',
-	keywords=['pciw', 'pciw.py'],
+	keywords=["avplib"],
 	packages=setuptools.find_packages(),
 	author_email='semina054@gmail.com',
-	url="https://github.com/romanin-rf/pciw.py",
+	url="https://github.com/romanin-rf/avplib",
 	long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
 	long_description_content_type="text/markdown",
 	include_package_data=True,
