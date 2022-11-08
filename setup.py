@@ -4,7 +4,7 @@ import setuptools
 # * This setup
 setuptools.setup(
 	name="avplib",
-	version="1.0.5",
+	version="1.1.1",
 	description='AVP - ASCII Video Player. Allows you to play any video as ASCII-art.',
 	keywords=["avplib"],
 	packages=setuptools.find_packages(),

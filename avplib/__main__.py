@@ -28,7 +28,7 @@ def play_audio(audio_path: str) -> None:
     pygame.mixer.music.load(audio_path)
     pygame.mixer.music.play()
 
-def play_video(frames: List[str], fps: int=30) -> None:
+def play_video(frames: List[str], fps: int) -> None:
     fps_timer = fpstimer.FPSTimer(fps)
     with Live(frames[0], auto_refresh=False, console=console) as live:
         for frame in frames:
@@ -47,7 +47,13 @@ def play_video(frames: List[str], fps: int=30) -> None:
     default=(0, 0),
     show_default=True
 )
-def main(video_path: str, res: Tuple[int, int]):
+@click.option(
+    "--fps",
+    type=click.IntRange(1, 120),
+    default=30,
+    show_default=True
+)
+def main(video_path: str, res: Tuple[int, int], fps: int):
     if sum(res) > 0:
         console.set_size((res[0]+1, res[1]))
     else:
@@ -57,15 +63,19 @@ def main(video_path: str, res: Tuple[int, int]):
     console.print(f"[#ea00ff]*[/] [#bbff00]Resolution[/]: {res[0]}x{res[1]}")
 
     video = avplib.AVP(video_path)
-    audio_path = video.get_audio("file", "temp.mp3")
+    if (fps != 30) and (fps != video.get_fps()):
+        video.set_fps(fps)
+    
+    audio_path = video.get_audio("file")
 
     with Progress() as pr:
         gaf = pr.add_task("Generation ASCII")
         def update_bar(complited: int, total: int):
             pr.update(gaf, total=total, completed=complited)
         frames = video.get_ascii_frames(res, callback=update_bar)
+
     play_audio(audio_path)
-    play_video(frames)
+    play_video(frames, fps)
 
 if __name__ == '__main__':
     main()
