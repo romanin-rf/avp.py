@@ -69,7 +69,12 @@ def play_video(frames: List[str], fps: int) -> None:
     is_flag=True,
     help="Disable audio playback."
 )
-def cav(video_path: str, res: Tuple[int, int], fps: int, threading: bool, no_audio: bool):
+@click.option(
+    "--yes", "-y",
+    is_flag=True,
+    help="Disable playback confirmation."
+)
+def cav(video_path: str, res: Tuple[int, int], fps: int, threading: bool, no_audio: bool, yes: bool):
     if sum(res) > 0:
         console.set_size((res[0]+1, res[1]))
     else:
@@ -90,17 +95,14 @@ def cav(video_path: str, res: Tuple[int, int], fps: int, threading: bool, no_aud
     st = time.time()
     with Progress(transient=True) as pr:
         gaf = pr.add_task("Generation ASCII")
-        
         def update_bar(complited: int, total: int): pr.update(gaf, total=total, completed=complited)
-        
         if threading: frames = video.get_ascii_frames_threading(res, callback=update_bar)
         else: frames = video.get_ascii_frames(res, callback=update_bar)
     et = time.time()
     
     console.print(f"[#EA00FF]*[/] [#BBFF00]Total Time[/]: {round(et-st,2)} [yellow]sec[/]\n[red](ENTER to continue)[/]")
-    input()
-    if not no_audio:
-        play_audio(audio_path)
+    if not yes: input()
+    if not no_audio: play_audio(audio_path)
     play_video(frames, fps)
 
 # > Convert and save
@@ -148,7 +150,7 @@ def convert2avf(from_video_path: str, to_video_path: str, res: Tuple[int, int], 
     
     st = time.time()
     with Progress(transient=True) as pr:
-        preparation = pr.add_task("Creating an archive", total=6)
+        preparation = pr.add_task("Creating an archive", total=7)
         gaf = pr.add_task("Generation ASCII")
         
         def update_bar(complited: int, total: int): pr.update(gaf, total=total, completed=complited)
@@ -159,6 +161,13 @@ def convert2avf(from_video_path: str, to_video_path: str, res: Tuple[int, int], 
             video = avplib.AVP(from_video_path)
             if fps != video.get_fps():
                 video.set_fps(fps)
+            
+            pr.update(preparation, advance=1, description="Generate info")
+            with NamedTemporaryFile("wb", delete=False) as av_info_file:
+                av_info_file_path = av_info_file.name
+                av_info_file.write(json.dumps({"fps": fps, "res": res}).encode(errors="ignore"))
+                avplib.TEMP_DETECTOR.append(av_info_file.name)
+            av_file.write(av_info_file_path, "info")
             
             pr.update(preparation, advance=1, description="Getting audio")
             audio_path = video.get_audio("file")
@@ -205,7 +214,12 @@ def convert2avf(from_video_path: str, to_video_path: str, res: Tuple[int, int], 
     is_flag=True,
     help="Disable audio playback."
 )
-def play_avf(ascii_video_path: str, no_audio: bool) -> None:
+@click.option(
+    "--yes", "-y",
+    is_flag=True,
+    help="Disable playback confirmation."
+)
+def play_avf(ascii_video_path: str, no_audio: bool, yes: bool) -> None:
     st = time.time()
     with Progress(transient=True) as pr:
         loading = pr.add_task("Getting info", total=3)
@@ -231,9 +245,8 @@ def play_avf(ascii_video_path: str, no_audio: bool) -> None:
     console.print(f"[#EA00FF]*[/] [#BBFF00]FPS[/]: {info['fps']}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Disable Audio[/]: {no_audio}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Total Time[/]: {round(et-st,2)} [yellow]sec[/]\n[red](ENTER to continue)[/]")
-    input()
-    if not no_audio:
-        play_audio(audio_path)
+    if not yes: input()
+    if not no_audio: play_audio(audio_path)
     play_video(frames, info['fps'])
 
 # > Main
