@@ -5,6 +5,15 @@ from typing import overload, List, Tuple, Literal, Any
 PATH = str
 WAV_FILE_BYTES = bytes
 
+class TempDetected:
+    files: List[str]
+    
+    def __init__(self) -> None: ...
+    def append(self, path: str) -> None: ...
+    def clear(self) -> None: ...
+
+TEMP_DETECTOR = TempDetected()
+
 class AVP:
     @overload
     def __init__(self, fp: str) -> None: ...

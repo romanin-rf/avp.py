@@ -1,1 +1,1 @@
-from .avplib import AVP
+from .avplib import AVP, TEMP_DETECTOR

@@ -4,10 +4,10 @@ import setuptools
 # * This setup
 setuptools.setup(
 	name="avplib",
-	version="1.3.0",
+	version="1.3.6",
 	description='AVP - ASCII Video Player. Allows you to play any video as ASCII-art.',
 	keywords=["avplib"],
-	packages=["avplib"],
+	packages=setuptools.find_packages(),
 	author_email='semina054@gmail.com',
 	url="https://github.com/romanin-rf/avplib",
 	long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),

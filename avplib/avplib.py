@@ -12,6 +12,19 @@ from typing import Literal, Any, Optional, Tuple
 # > Local Imports
 from .units import ASCII_CHARS_GRADIENTION
 
+# > Temp Detected
+class TempDetected:
+    def __init__(self) -> None:
+        self.files = []
+    def append(self, path: str) -> None: self.files.append(path)
+    def clear(self) -> None:
+        for i in self.files:
+            try: os.remove(i)
+            except: pass
+
+# > Initilation
+TEMP_DETECTOR = TempDetected()
+
 # > Functions
 def _callback(complited: int, total: int): ...
 
@@ -67,24 +80,18 @@ class ThreadingFrameHandler:
 # > Main Class
 class AVP:
     def __init__(self, fp) -> None:
-        self.tempfiles = []
         if isinstance(fp, str):
             self.path = os.path.abspath(fp)
         elif isinstance(fp, bytes):
             with NamedTemporaryFile("wb", delete=False) as tempfile:
                 tempfile.write(fp)
                 self.path = os.path.abspath(tempfile.name)
-                self.tempfiles.append(self.path)
+                TEMP_DETECTOR.append(self.path)
         elif isinstance(fp, BufferedReader):
             self.path = os.path.abspath(fp.name)
         else:
             raise TypeError(f"The variable type 'fp' does not accept the type {type(fp)}")
         self.video = mp.VideoFileClip(self.path)
-    
-    def __del__(self) -> None:
-        self.video.close()
-        for i in self.tempfiles:
-            os.remove(i)
     
     def get_frames_count(self):
         cap = cv2.VideoCapture(self.path)
@@ -98,7 +105,7 @@ class AVP:
     def set_fps(self, fps):
         with NamedTemporaryFile("wb", suffix=".mp4", delete=False) as tempfile:
             filepath = os.path.abspath(tempfile.name)
-        self.tempfiles.append(filepath)
+            TEMP_DETECTOR.append(filepath)
         self.video.write_videofile(filename=filepath, fps=fps, codec="mpeg4")
     
     def get_audio(self, tp: Literal["file", "bytes", "array"], filepath=None):
@@ -106,7 +113,7 @@ class AVP:
             if filepath is None:
                 with NamedTemporaryFile("wb", suffix=".mp3", delete=False) as tempfile:
                     filepath = os.path.abspath(tempfile.name)
-                self.tempfiles.append(filepath)
+                    TEMP_DETECTOR.append(filepath)
             else:
                 filepath = os.path.abspath(filepath)
             self.video.audio.write_audiofile(filepath)
