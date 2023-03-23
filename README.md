@@ -31,6 +31,8 @@ Options:
   --fps INTEGER RANGE             FPS at which the video will be played back.
                                   [default: 30; 1<=x<=120]
   -th, --threading                Enable on threading processing.
+  -na, --no_audio                 Disable audio playback.
+  -y, --yes                       Disable playback confirmation.
   --help                          Show this message and exit.
 ```
 
@@ -44,6 +46,8 @@ Options:
                                   after conversion).  [default: 118, 30]
   --fps INTEGER RANGE             FPS for conversion (does not change after
                                   conversion).  [default: 30; 1<=x<=120]
+  -th, --threading                Enable on threading processing.
+  -ar, --auto_res                 Automatically detection resolution.
   --help                          Show this message and exit.
 ```
 
@@ -53,5 +57,7 @@ python -m avplib play [OPTIONS] ASCII_VIDEO_PATH
   Play ASCII Video.
 
 Options:
-  --help  Show this message and exit.
+  -na, --no_audio  Disable audio playback.
+  -y, --yes        Disable playback confirmation.
+  --help           Show this message and exit.
 ```
