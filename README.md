@@ -8,14 +8,12 @@ python -m pip install --upgrade avplib
 ```
 
 ## Usage
-- `Windows`
-    -   ```
-        Usage: python -m avplib [OPTIONS] VIDEO_PATH
+```
+python -m avplib [OPTIONS] VIDEO_PATH
 
-        Options:
-        -r, --res <INTEGER INTEGER>...  [default: 0, 0]
-        --fps INTEGER RANGE             [default: 30; 1<=x<=120]
-        --help                          Show this message and exit.
-        ```
-- `Linux`
-    - `¯\_(ツ)_/¯`
+Options:
+  -r, --res <INTEGER INTEGER>        [default: 0, 0]
+  --fps INTEGER RANGE                [default: 30; 1<=x<=120]
+  --threading / -th, --no-threading  
+  --help                             Show this message and exit.
+```
