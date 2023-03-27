@@ -156,4 +156,8 @@ class AVP:
         
         while thfn.frames_count > thfn.done: time.sleep(0.01)
         
-        return thfn.pl.data
+        frames = []
+        for i in thfn.pl.data:
+            if isinstance(i, str): frames.append(i)
+        
+        return frames
