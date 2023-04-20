@@ -7,10 +7,12 @@ from PIL import Image
 from io import BufferedReader, BytesIO
 from tempfile import NamedTemporaryFile
 from threading import Thread
+from multiprocessing import Process, Pipe
+from multiprocessing.connection import PipeConnection
 # > Typing
-from typing import Literal, Any, Optional, Tuple
+from typing import Literal, Any, Optional, Tuple, List
 # > Local Imports
-from .units import ASCII_CHARS_GRADIENTION
+from .units import ASCII_CHARS_GRADIENTION, ASCII_CHARS
 
 # > Temp Detected
 class TempDetected:
@@ -27,6 +29,14 @@ TEMP_DETECTOR = TempDetected()
 
 # > Functions
 def _callback(complited: int, total: int): ...
+
+def generate_ascii_chars_gradient(ascii_chars: List[str]=ASCII_CHARS) -> List[str]:
+    ascii_chars_gradient_k = int(256 / len(ascii_chars)) + 1
+    return [ascii_chars[i // ascii_chars_gradient_k] for i in range(0, 257)]
+
+def generate_ascii_frame(image_frame, frame_size: Tuple[int, int], ascii_chars_gradient: List[str]=ASCII_CHARS_GRADIENTION) -> str:
+    ac = "".join([ascii_chars_gradient[pixel] for pixel in Image.fromarray(image_frame).convert("L").resize(frame_size).getdata()])
+    return "\n".join([ac[index:(index+frame_size[0])] for index in range(0, len(ac), frame_size[0])])
 
 # > Classes
 class ProgressiveList:
@@ -59,14 +69,44 @@ class ProgressiveList:
     def clear(self) -> None: self.data = [self.pass_data for i in range(0, self.max_size)]
 
 class ThreadingFrameHandler:
+    def __init__(
+        self,
+        frames_count: int,
+        frame_size: Tuple[int, int],
+        callback=_callback,
+        ascii_chars_gradient: List[str]=ASCII_CHARS_GRADIENTION
+    ) -> None:
+        self.frames_count = frames_count
+        self.frame_size = frame_size
+        self.pl = ProgressiveList(frames_count)
+        self.done = 1
+        self.callback = callback
+        self.ascii_chars_gradient = ascii_chars_gradient
+    
+    def _gaf(self, idx: int, data: Tuple[bool, Any]) -> None:
+        ret, image_frame = data
+        if ret:
+            self.pl[idx] = generate_ascii_frame(image_frame, self.frame_size, self.ascii_chars_gradient)
+        self.done += 1
+        self.callback(self.done, self.frames_count)
+    
+    def get_acsii_frame(self, idx: int, data: Tuple[bool, Any]) -> None:
+        Thread(target=self._gaf, args=(idx, data)).start()
+
+class MultiprocessingFrameHandler:
     def __init__(self, frames_count: int, frame_size: Tuple[int, int], callback=_callback) -> None:
         self.frames_count = frames_count
         self.frame_size = frame_size
         self.pl = ProgressiveList(frames_count)
         self.done = 1
         self.callback = callback
-    
-    def _gaf(self, idx: int, data: Tuple[bool, Any]) -> None:
+        
+    @staticmethod
+    def _gaf(connection: PipeConnection) -> None:
+        self: MultiprocessingFrameHandler = connection.recv()
+        idx: int = connection.recv()
+        data: Tuple[bool, Any] = connection.recv()
+        
         ret, image_frame = data
         if ret:
             ac = "".join([ASCII_CHARS_GRADIENTION[pixel] for pixel in Image.fromarray(image_frame).convert("L").resize(self.frame_size).getdata()])
@@ -75,11 +115,16 @@ class ThreadingFrameHandler:
         self.callback(self.done, self.frames_count)
     
     def get_acsii_frame(self, idx: int, data: Tuple[bool, Any]) -> None:
-        Thread(target=self._gaf, args=(idx, data)).start()
+        send_conn, recv_conn = Pipe()
+        Process(target=self._gaf, args=(recv_conn,)).start()
+        send_conn.send(self)
+        send_conn.send(idx)
+        send_conn.send(data)
 
 # > Main Class
 class AVP:
-    def __init__(self, fp) -> None:
+    def __init__(self, fp, ascii_chars: List[str]=ASCII_CHARS) -> None:
+        self.ascii_chars_gradient = generate_ascii_chars_gradient(ascii_chars)
         if isinstance(fp, str):
             self.path = os.path.abspath(fp)
         elif isinstance(fp, bytes):
@@ -136,8 +181,7 @@ class AVP:
             callback(i, frames_count)
             ret, image_frame = capture.read()
             if ret:
-                ac = "".join([ASCII_CHARS_GRADIENTION[pixel] for pixel in Image.fromarray(image_frame).convert("L").resize(frame_size).getdata()])
-                al.append("\n".join([ac[index:(index+frame_size[0])] for index in range(0, len(ac), frame_size[0])]))
+                al.append(generate_ascii_frame(image_frame, frame_size, self.ascii_chars_gradient))
             else:
                 break
         capture.release()
@@ -148,7 +192,7 @@ class AVP:
         capture.set(1, 1)
         frames_count = self.get_frames_count()
         
-        thfn = ThreadingFrameHandler(frames_count, frame_size, callback)
+        thfn = ThreadingFrameHandler(frames_count, frame_size, callback, self.ascii_chars_gradient)
         
         for i in range(1, frames_count):
             ret, image_frame = capture.read()

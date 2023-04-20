@@ -3,6 +3,7 @@ import pathlib
 from zipfile import ZipFile, ZIP_DEFLATED
 from tempfile import NamedTemporaryFile
 from typing import Tuple, List, Dict, Any, Literal, Union, TypeVar
+from .units import ASCII_CHARS
 
 T = TypeVar("T")
 D = TypeVar("D")
@@ -28,7 +29,8 @@ class AVFile:
         author: str="",
         fps: int=1,
         res: Tuple[int, int]=(1,1),
-        exists_audio: bool=False
+        exists_audio: bool=False,
+        ascii_chars: List[str]=ASCII_CHARS
     ) -> None:
         self.fp.writestr(
             "info",
@@ -38,7 +40,8 @@ class AVFile:
                     "author": author,
                     "fps": fps,
                     "res": res,
-                    "exists_audio": exists_audio
+                    "exists_audio": exists_audio,
+                    "ascii_chars": ascii_chars
                 }
             )
         )

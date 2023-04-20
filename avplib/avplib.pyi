@@ -1,6 +1,8 @@
 from io import BufferedReader
 from numpy import ndarray
+import moviepy.editor as mpe
 from typing import overload, List, Tuple, Literal, Any
+from .units import ASCII_CHARS
 
 PATH = str
 WAV_FILE_BYTES = bytes
@@ -15,14 +17,20 @@ class TempDetected:
 TEMP_DETECTOR = TempDetected()
 
 class AVP:
+    ascii_chars_gradient: List[str]
+    path: PATH
+    video: mpe.VideoFileClip
+    
     @overload
-    def __init__(self, fp: str) -> None: ...
+    def __init__(self, fp: str, ascii_chars: List[str]=ASCII_CHARS) -> None: ...
     @overload
-    def __init__(self, fp: bytes) -> None: ...
+    def __init__(self, fp: bytes, ascii_chars: List[str]=ASCII_CHARS) -> None: ...
     @overload
-    def __init__(self, fp: BufferedReader) -> None: ...
+    def __init__(self, fp: BufferedReader, ascii_chars: List[str]=ASCII_CHARS) -> None: ...
+    
     @staticmethod
     def _callback(complited: int, total: int) -> None: ...
+    
     @overload
     def get_audio(self, tp: Literal["file"], filepath: str=None) -> PATH: ...
     @overload

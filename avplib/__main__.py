@@ -4,15 +4,13 @@ import avplib
 import pygame
 import fpstimer
 import time
-import zipfile
-import json
-from tempfile import NamedTemporaryFile
 from rich.console import Console
 from rich.progress import Progress
 from rich.live import Live
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List
 # > Local Imports
 from .avf import AVFile
+from .units import ASCII_CHARS
 
 # ! Set Environ
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -76,19 +74,37 @@ def play_video(frames: List[str], fps: int) -> None:
     is_flag=True,
     help="Disable playback confirmation."
 )
-def cav(video_path: str, res: Tuple[int, int], fps: int, threading: bool, no_audio: bool, yes: bool):
+@click.option(
+    "--ascii_chars",
+    type=list,
+    default=ASCII_CHARS,
+    show_default=True,
+    help="ASCII Chars for to create gradation (256 <= ascii_chars)."
+)
+def cav(
+    video_path: str,
+    res: Tuple[int, int],
+    fps: int,
+    threading: bool,
+    no_audio: bool,
+    yes: bool,
+    ascii_chars: List[str]
+):
     if sum(res) > 0:
         console.set_size((res[0]+1, res[1]))
     else:
         res = (console.size.width-1, console.size.height)
+    
+    if len(ascii_chars) > 256: ascii_chars = ascii_chars[:256]
 
     console.print(f"[#EA00FF]*[/] [#BBFF00]Video Path[/]: '{os.path.abspath(video_path)}'")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Resolution[/]: {res[0]}x{res[1]}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]FPS[/]: {fps}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Enable Threading[/]: {threading}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Disable Audio[/]: {no_audio}")
+    console.print(f"[#EA00FF]*[/] [#BBFF00]ASCII Chars[/]: {ascii_chars}")
 
-    video = avplib.AVP(video_path)
+    video = avplib.AVP(video_path, ascii_chars)
     if (fps != 30) and (fps != video.get_fps()):
         video.set_fps(fps)
     if not no_audio:
@@ -158,6 +174,13 @@ def cav(video_path: str, res: Tuple[int, int], fps: int, threading: bool, no_aud
     is_flag=True,
     help="Disable audio playback."
 )
+@click.option(
+    "--ascii_chars",
+    type=list,
+    default=ASCII_CHARS,
+    show_default=True,
+    help="ASCII Chars for to create gradation (256 <= ascii_chars)."
+)
 def convert2avf(
     from_video_path: str,
     to_video_path: str,
@@ -167,19 +190,23 @@ def convert2avf(
     auto_res: bool,
     title: str,
     author: str,
-    no_audio: bool
+    no_audio: bool,
+    ascii_chars: List[str]
 ):
     if auto_res:
         res = (console.size.width-1, console.size.height)
-
+    
+    if len(ascii_chars) > 256: ascii_chars = ascii_chars[:256]
+    
     console.print(f"[#EA00FF]*[/] [#BBFF00]From Video Path[/]: {os.path.abspath(from_video_path).__repr__()}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]To Video Path[/]: {os.path.abspath(to_video_path).__repr__()}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Resolution[/]: {res[0]}x{res[1]}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]FPS[/]: {fps}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Enable Threading[/]: {threading}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Disable Audio[/]: {no_audio}")
+    console.print(f"[#EA00FF]*[/] [#BBFF00]ASCII Chars[/]: {ascii_chars}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Title[/]: {title.__repr__()}")
-    console.print(f"[#EA00FF]*[/] [#BBFF00]Title[/]: {author.__repr__()}")
+    console.print(f"[#EA00FF]*[/] [#BBFF00]Author[/]: {author.__repr__()}")
     
     st = time.time()
     with Progress(transient=True) as pr:
@@ -192,7 +219,7 @@ def convert2avf(
         avfile = AVFile(to_video_path, "w")
         
         pr.update(preparation, advance=1, description="Preparation Video File")
-        video = avplib.AVP(from_video_path)
+        video = avplib.AVP(from_video_path, ascii_chars)
         if fps != video.get_fps():
             video.set_fps(fps)
         
@@ -202,7 +229,8 @@ def convert2avf(
             author,
             fps,
             res,
-            not(no_audio)
+            not(no_audio),
+            ascii_chars
         )
         
         pr.update(preparation, advance=1, description="Compressing audio")
@@ -264,6 +292,7 @@ def play_avf(ascii_video_path: str, no_audio: bool, yes: bool) -> None:
     console.print(f"[#EA00FF]*[/] [#BBFF00]Author[/]: {info['author'].__repr__()}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Exists Audio[/]: {info['exists_audio']}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Disable Audio[/]: {no_audio}")
+    console.print(f"[#EA00FF]*[/] [#BBFF00]ASCII Chars[/]: {info['ascii_chars']}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Total Time[/]: {round(et-st,2)} [yellow]sec[/]\n[red](ENTER to continue)[/]")
     
     if not yes: input()
