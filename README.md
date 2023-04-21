@@ -24,3 +24,6 @@ Commands:
   convert  Convert Video Files to ASCII Video File.
   play     Play ASCII Video.
 ```
+
+## Examples
+![EXAMPLE-1](assets/1.gif)
