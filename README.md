@@ -1,6 +1,11 @@
 # avplib
 ## Description
-**AVP** - ASCII Video Player. Allows you to play any video as ASCII-art.
+**AVP** - ASCII Video Player. Plays, converts any video to ASCII video that can be played in terminale.
+
+## Features
+- Can play any ASCII video in the terminal.
+- Can convert an ASCII video file and play it back.
+- Can select a black and white gradation palette (in ASCII).
 
 ## Install
 ```
