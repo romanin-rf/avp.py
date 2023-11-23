@@ -1,20 +1,29 @@
 import os
 import cv2
 import time
+import queue
 import moviepy.editor as mp
 import soundfile as sf
 from PIL import Image
 from io import BufferedReader, BytesIO
 from tempfile import NamedTemporaryFile
 from threading import Thread
-from multiprocessing import Process, Pipe
-from multiprocessing.connection import PipeConnection
+try: 
+    from multiprocessing import Process, Pipe
+    from multiprocessing.connection import PipeConnection
+    init_multiprocessing = True
+except:
+    init_multiprocessing = False
 # > Typing
-from typing import Literal, Any, Optional, Tuple, List
+from typing import Literal, Any, Optional, Union, TypeVar, Generic, Tuple, List
 # > Local Imports
 from .units import ASCII_CHARS_GRADIENTION, ASCII_CHARS
 
-# > Temp Detected
+# ! Types
+DT = TypeVar('DT')
+PDT = TypeVar('PDT')
+
+# ! Temp Detected
 class TempDetected:
     def __init__(self) -> None:
         self.files = []
@@ -39,35 +48,46 @@ def generate_ascii_frame(image_frame, frame_size: Tuple[int, int], ascii_chars_g
     return "\n".join([ac[index:(index+frame_size[0])] for index in range(0, len(ac), frame_size[0])])
 
 # > Classes
-class ProgressiveList:
+class ProgressiveList(Generic[DT, PDT]):
     def __init__(
         self,
         max_size: int=256,
-        pass_data: Optional[Any]=None
+        pass_data: Optional[PDT]=None
     ) -> None:
         assert isinstance(max_size, int)
         self.max_size: int = max_size
-        self.pass_data = pass_data
-        self.data = [self.pass_data for i in range(0, self.max_size)]
+        self.pass_data: PDT = pass_data
+        self.data: List[Union[DT, PDT]] = [self.pass_data for i in range(0, self.max_size)]
     
     def __repr__(self) -> str: return self.data.__repr__()
     def __str__(self) -> str: return self.__repr__()
-    def __getitem__(self, key: int) -> Any: return self.data[key]
-    def __setitem__(self, key: int, value: Any) -> Any: self.data[key] = value
-    def __delitem__(self, key: int) -> Any: self.data[key] = None
+    def __getitem__(self, key: int) -> Union[DT, PDT]: return self.data[key]
+    def __setitem__(self, key: int, value: DT) -> None: self.data[key] = value
+    def __delitem__(self, key: int) -> None: self.data[key] = None
 
     def count_pass(self) -> int:
         c = 0
-        for i in self.data: c += (1 if i == self.pass_data else 0)
+        for i in self.data:
+            c += (1 if i == self.pass_data else 0)
         return c
     
     def count_busy(self) -> int:
         c = 0
-        for i in self.data: c += (1 if i != self.pass_data else 0)
+        for i in self.data:
+            c += (1 if i != self.pass_data else 0)
         return c
     
-    def clear(self) -> None: self.data = [self.pass_data for i in range(0, self.max_size)]
+    def clear(self) -> None:
+        self.data = [self.pass_data for i in range(0, self.max_size)]
+    
+    def to_list(self) -> List[DT]:
+        datas = []
+        for i in self.data:
+            if i != self.pass_data:
+                datas.append(i)
+        return datas
 
+# ! Handlers
 class ThreadingFrameHandler:
     def __init__(
         self,
@@ -78,7 +98,7 @@ class ThreadingFrameHandler:
     ) -> None:
         self.frames_count = frames_count
         self.frame_size = frame_size
-        self.pl = ProgressiveList(frames_count)
+        self.pl: ProgressiveList[str, None] = ProgressiveList(frames_count)
         self.done = 1
         self.callback = callback
         self.ascii_chars_gradient = ascii_chars_gradient
@@ -93,35 +113,63 @@ class ThreadingFrameHandler:
     def get_acsii_frame(self, idx: int, data: Tuple[bool, Any]) -> None:
         Thread(target=self._gaf, args=(idx, data)).start()
 
-class MultiprocessingFrameHandler:
-    def __init__(self, frames_count: int, frame_size: Tuple[int, int], callback=_callback) -> None:
-        self.frames_count = frames_count
-        self.frame_size = frame_size
-        self.pl = ProgressiveList(frames_count)
-        self.done = 1
-        self.callback = callback
+if init_multiprocessing:
+    class MultiprocessingFrameHandler:
+        def __init__(
+            self,
+            frames_count: int,
+            frame_size: Tuple[int, int],
+            callback=_callback
+        ) -> None:
+            self.frames_count = frames_count
+            self.frame_size = frame_size
+            self.queue: queue.Queue[Tuple[int, bool, Any]] = queue.Queue()
+            self.pl: ProgressiveList[str, None] = ProgressiveList(frames_count)
+            self.done = 1
+            self.callback = callback
+            self.cores = os.cpu_count() or 1
+            self.processes_started = 0
         
-    @staticmethod
-    def _gaf(connection: PipeConnection) -> None:
-        self: MultiprocessingFrameHandler = connection.recv()
-        idx: int = connection.recv()
-        data: Tuple[bool, Any] = connection.recv()
+        @staticmethod
+        def _gaf(connection: PipeConnection) -> None:
+            frame_size: Tuple[int, int] = connection.recv()
+            while True:
+                data: Union[Tuple[int, bool, Any], Literal[0]] = connection.recv()
+                if data == 0:
+                    break
+                idx, ret, image_frame = data
+                if ret:
+                    ac = "".join([ASCII_CHARS_GRADIENTION[pixel] for pixel in Image.fromarray(image_frame).convert("L").resize(frame_size).getdata()])
+                    text_frame = "\n".join([ac[index:(index+frame_size[0])] for index in range(0, len(ac), frame_size[0])])
+                else:
+                    text_frame = None
+                connection.send((idx, text_frame))
         
-        ret, image_frame = data
-        if ret:
-            ac = "".join([ASCII_CHARS_GRADIENTION[pixel] for pixel in Image.fromarray(image_frame).convert("L").resize(self.frame_size).getdata()])
-            self.pl[idx] = "\n".join([ac[index:(index+self.frame_size[0])] for index in range(0, len(ac), self.frame_size[0])])
-        self.done += 1
-        self.callback(self.done, self.frames_count)
-    
-    def get_acsii_frame(self, idx: int, data: Tuple[bool, Any]) -> None:
-        send_conn, recv_conn = Pipe()
-        Process(target=self._gaf, args=(recv_conn,)).start()
-        send_conn.send(self)
-        send_conn.send(idx)
-        send_conn.send(data)
+        def _gaf_control_thread(self, pipe: PipeConnection) -> None:
+            self.processes_started += 1
+            pipe.send(self.frame_size)
+            while not self.queue.empty():
+                pipe.send(self.queue.get())
+                data: Tuple[int, Optional[str]] = pipe.recv()
+                if data[1] is not None:
+                    self.pl[data[0]] = data[1]
+                self.done += 1
+                self.callback(self.done, self.frames_count)
+            pipe.send(0)
+            self.processes_started -= 1
+        
+        def add_task_data(self, idx: int, ret: bool, image_frame: Any) -> None:
+            self.queue.put((idx, ret, image_frame))
+        
+        def proccessing(self) -> None:
+            for i in range(self.cores):
+                send_conn, recv_conn = Pipe()
+                Process(target=self._gaf, args=(recv_conn,)).start()
+                Thread(target=self._gaf_control_thread, args=(send_conn,), daemon=True).start()
+            while self.processes_started > 0:
+                time.sleep(0.01)
 
-# > Main Class
+# ! Main Class
 class AVP:
     def __init__(self, fp, ascii_chars: List[str]=ASCII_CHARS) -> None:
         self.ascii_chars_gradient = generate_ascii_chars_gradient(ascii_chars)
@@ -176,7 +224,6 @@ class AVP:
         capture, al = cv2.VideoCapture(self.path), []
         capture.set(1, 1)
         frames_count = self.get_frames_count()
-        
         for i in range(1, frames_count):
             callback(i, frames_count)
             ret, image_frame = capture.read()
@@ -191,17 +238,22 @@ class AVP:
         capture = cv2.VideoCapture(self.path)
         capture.set(1, 1)
         frames_count = self.get_frames_count()
-        
         thfn = ThreadingFrameHandler(frames_count, frame_size, callback, self.ascii_chars_gradient)
-        
         for i in range(1, frames_count):
             ret, image_frame = capture.read()
             thfn.get_acsii_frame(i, (ret, image_frame))
-        
-        while thfn.frames_count > thfn.done: time.sleep(0.01)
-        
-        frames = []
-        for i in thfn.pl.data:
-            if isinstance(i, str): frames.append(i)
-        
-        return frames
+        while thfn.frames_count > thfn.done:
+            time.sleep(0.01)
+        capture.release()
+        return thfn.pl.to_list()
+    
+    def get_ascii_frames_multiprocessing(self, frame_size, callback=_callback):
+        capture = cv2.VideoCapture(self.path)
+        capture.set(1, 1)
+        frames_count: int = self.get_frames_count()
+        mpfn = MultiprocessingFrameHandler(frames_count, frame_size, callback)
+        for i in range(1, frames_count):
+            ret, image_frame = capture.read()
+            mpfn.add_task_data(i, ret, image_frame)
+        mpfn.proccessing()
+        return mpfn.pl.to_list()

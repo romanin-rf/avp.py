@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "avplib"
+version = "1.5.0"
+description = "AVP - ASCII Video Player. Allows you to play any video as ASCII-art."
+authors = ["Romanin <semina054@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/romanin-rf/avplib"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+numpy = ">=1.25.0"
+soundfile = ">=0.12.1"
+opencv-python = ">=4.8.1.78"
+pillow = ">=10.1.0"
+pygame = ">=2.5.2"
+fpstimer = ">=0.0.1"
+ffmpeg = ">=1.4"
+moviepy = ">=1.0.3"
+rich = ">=13.0.0"
+click = ">=8.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

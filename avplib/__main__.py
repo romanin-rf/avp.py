@@ -65,6 +65,11 @@ def play_video(frames: List[str], fps: int) -> None:
     help="Enable on threading processing."
 )
 @click.option(
+    "--multiprocessing", "-mp",
+    is_flag=True,
+    help="Enable on multiprocessing."
+)
+@click.option(
     "--no_audio", "-na",
     is_flag=True,
     help="Disable audio playback."
@@ -86,10 +91,13 @@ def cav(
     res: Tuple[int, int],
     fps: int,
     threading: bool,
+    multiprocessing: bool,
     no_audio: bool,
     yes: bool,
     ascii_chars: List[str]
 ):
+    multiprocessing = multiprocessing and avplib.avplib.init_multiprocessing
+
     if sum(res) > 0:
         console.set_size((res[0]+1, res[1]))
     else:
@@ -101,6 +109,7 @@ def cav(
     console.print(f"[#EA00FF]*[/] [#BBFF00]Resolution[/]: {res[0]}x{res[1]}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]FPS[/]: {fps}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Enable Threading[/]: {threading}")
+    console.print(f"[#EA00FF]*[/] [#BBFF00]Enable Multiprocessing[/]: {multiprocessing}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Disable Audio[/]: {no_audio}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]ASCII Chars[/]: {ascii_chars}")
 
@@ -113,9 +122,14 @@ def cav(
     st = time.time()
     with Progress(transient=True) as pr:
         gaf = pr.add_task("Generation ASCII")
-        def update_bar(complited: int, total: int): pr.update(gaf, total=total, completed=complited)
-        if threading: frames = video.get_ascii_frames_threading(res, callback=update_bar)
-        else: frames = video.get_ascii_frames(res, callback=update_bar)
+        def update_bar(complited: int, total: int):
+            pr.update(gaf, total=total, completed=complited)
+        if threading:
+            frames = video.get_ascii_frames_threading(res, callback=update_bar)
+        elif multiprocessing:
+            frames = video.get_ascii_frames_multiprocessing(res, callback=update_bar)
+        else:
+            frames = video.get_ascii_frames(res, callback=update_bar)
     et = time.time()
     
     console.print(f"[#EA00FF]*[/] [#BBFF00]Total Time[/]: {round(et-st,2)} [yellow]sec[/]\n[red](ENTER to continue)[/]")
@@ -153,6 +167,11 @@ def cav(
     help="Enable on threading processing."
 )
 @click.option(
+    "--multiprocessing", "-mp",
+    is_flag=True,
+    help="Enable on multiprocessing."
+)
+@click.option(
     "--auto_res", "-ar",
     is_flag=True,
     help="Automatically detection resolution."
@@ -187,12 +206,15 @@ def convert2avf(
     res: Tuple[int, int],
     fps: int,
     threading: bool,
+    multiprocessing: bool,
     auto_res: bool,
     title: str,
     author: str,
     no_audio: bool,
     ascii_chars: List[str]
 ):
+    multiprocessing = multiprocessing and avplib.avplib.init_multiprocessing
+
     if auto_res:
         res = (console.size.width-1, console.size.height)
     
@@ -203,6 +225,7 @@ def convert2avf(
     console.print(f"[#EA00FF]*[/] [#BBFF00]Resolution[/]: {res[0]}x{res[1]}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]FPS[/]: {fps}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Enable Threading[/]: {threading}")
+    console.print(f"[#EA00FF]*[/] [#BBFF00]Enable Multiprocessing[/]: {multiprocessing}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Disable Audio[/]: {no_audio}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]ASCII Chars[/]: {ascii_chars}")
     console.print(f"[#EA00FF]*[/] [#BBFF00]Title[/]: {title.__repr__()}")
@@ -240,6 +263,8 @@ def convert2avf(
         pr.update(preparation, advance=1, description="Compressing Video")
         if threading:
             frames = video.get_ascii_frames_threading(res, callback=update_bar)
+        elif multiprocessing:
+            frames = video.get_ascii_frames_multiprocessing(res, callback=update_bar)
         else:
             frames = video.get_ascii_frames(res, callback=update_bar)
         pr.remove_task(gaf)
