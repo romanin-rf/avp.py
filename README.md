@@ -29,5 +29,5 @@ Commands:
 <details>
   <summary> 🎬 Bad Apple </summary>
 
-  ![EXAMPLE-1](https://user-images.githubusercontent.com/60302782/233639445-20c039e2-6ab7-48ac-8f5b-96e0317065c8.webm)
+  [EXAMPLE-1](https://user-images.githubusercontent.com/60302782/233639445-20c039e2-6ab7-48ac-8f5b-96e0317065c8.webm)
 </details>
